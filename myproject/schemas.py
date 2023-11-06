@@ -2,6 +2,24 @@ from pydantic import BaseModel
 from datetime import date
 
 
+class PlayerBase(BaseModel):
+    name: str
+    age: int
+    position: str
+
+
+class PlayerCreate(PlayerBase):
+    pass
+
+
+class Player(PlayerBase):
+    id: int
+    club_id: int
+
+    class Config:
+        orm_mode = True
+
+
 class FootballClubBase(BaseModel):
     name: str
     founded: date
@@ -16,24 +34,6 @@ class FootballClubCreate(FootballClubBase):
 class FootballClub(FootballClubBase):
     id: int
     players: list[Player] = []
-
-    class Config:
-        orm_mode = True
-
-
-class PlayerBase(BaseModel):
-    name: str
-    age: int
-    position: str
-
-
-class PlayerCreate(PlayerBase):
-    pass
-
-
-class Player(PlayerBase):
-    id: int
-    club_id: int
 
     class Config:
         orm_mode = True

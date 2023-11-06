@@ -8,7 +8,7 @@ class FootballClub(Base):
     __tablename__ = "football_clubs"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String, index=True)
     founded = Column(Integer)
     stadium = Column(String)
     manager = Column(String)

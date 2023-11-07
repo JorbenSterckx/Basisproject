@@ -1,5 +1,8 @@
-from fastapi import Depends, FastAPI, HTTPException, Query, Path
+import secrets
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Path, status
 from sqlalchemy.orm import Session
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 import os
 import crud
@@ -15,6 +18,8 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+security = HTTPBasic()
+
 
 # Dependency
 def get_db():
@@ -25,30 +30,50 @@ def get_db():
         db.close()
 
 
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    current_username_bytes = credentials.username.encode("utf8")
+    correct_username_bytes = b"testtest@yahoo.com"
+    is_correct_username = secrets.compare_digest(
+        current_username_bytes, correct_username_bytes
+    )
+    current_password_bytes = credentials.password.encode("utf8")
+    correct_password_bytes = b"ILoveInternetExplorer"
+    is_correct_password = secrets.compare_digest(
+        current_password_bytes, correct_password_bytes
+    )
+    if not (is_correct_username and is_correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
 @app.post("/football-clubs/", response_model=schemas.FootballClub)
-def create_football_club(football_club: schemas.FootballClubCreate, db: Session = Depends(get_db)):
+def create_football_club(football_club: schemas.FootballClubCreate, db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     return crud.create_football_club(db=db, football_club=football_club)
 
 
 @app.get("/football-clubs/", response_model=list[schemas.FootballClub])
-def read_football_club(skip: int = Query(0, title="Skip items", ge=0), limit: int = Query(100, title="Limit items", ge=1, le=1000), db: Session = Depends(get_db)):
+def read_football_club(skip: int = Query(0, title="Skip items", ge=0), limit: int = Query(100, title="Limit items", ge=1, le=1000), db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     football_clubs = crud.get_football_clubs(db, skip=skip, limit=limit)
     return football_clubs
 
 
 @app.post("/football-clubs/{club_id}/players/", response_model=schemas.Player)
-def create_player_for_club(club_id: int, player: schemas.PlayerCreate, db: Session = Depends(get_db)):
+def create_player_for_club(club_id: int, player: schemas.PlayerCreate, db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     return crud.create_player(db=db, player=player, club_id=club_id)
 
 
 @app.get("/football-clubs/{club_id}/players/", response_model=list[schemas.Player])
-def read_player(club_id: int, skip: int = Query(0, title="Skip items", ge=0), limit: int = Query(100, title="Limit items", ge=1, le=1000), db: Session = Depends(get_db)):
+def read_player(club_id: int, skip: int = Query(0, title="Skip items", ge=0), limit: int = Query(100, title="Limit items", ge=1, le=1000), db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     players = crud.get_players(db, club_id, skip=skip, limit=limit)
     return players
 
 
 @app.delete("/football-clubs/{club_id}/players/{player_id}", response_model=schemas.Player)
-def delete_player_from_club(club_id: int, player_id: int, db: Session = Depends(get_db)):
+def delete_player_from_club(club_id: int, player_id: int, db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     db_player = db.query(models.Player).filter(
         models.Player.club_id == club_id,
         models.Player.id == player_id
@@ -63,7 +88,7 @@ def delete_player_from_club(club_id: int, player_id: int, db: Session = Depends(
 
 
 @app.get("/football-clubs/{club_id}", response_model=schemas.FootballClub)
-def get_football_clubs(club_id: int = Path(..., title="ID of the football club", ge=1), db: Session = Depends(get_db)):
+def get_football_clubs(club_id: int = Path(..., title="ID of the football club", ge=1), db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     db_club = crud.get_football_club_by_id(db, club_id)
 
     if db_club is None:
@@ -73,7 +98,7 @@ def get_football_clubs(club_id: int = Path(..., title="ID of the football club",
 
 
 @app.get("/players/{player_id}", response_model=schemas.Player)
-def get_players(player_id: int = Path(..., title="ID of the player", ge=1), db: Session = Depends(get_db)):
+def get_players(player_id: int = Path(..., title="ID of the player", ge=1), db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     db_player = crud.get_player_by_id(db, player_id)
 
     if db_player is None:
@@ -83,7 +108,7 @@ def get_players(player_id: int = Path(..., title="ID of the player", ge=1), db: 
 
 
 @app.delete("/football-clubs/{club_id}", response_model=schemas.FootballClub)
-def delete_football_club(club_id: int = Path(..., title="ID of the football club", ge=1), db: Session = Depends(get_db)):
+def delete_football_club(club_id: int = Path(..., title="ID of the football club", ge=1), db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     db_club = db.query(models.FootballClub).filter(
         models.FootballClub.id == club_id
     ).first()
@@ -97,7 +122,7 @@ def delete_football_club(club_id: int = Path(..., title="ID of the football club
 
 
 @app.patch("/football-clubs/{club_id}", response_model=schemas.FootballClub)
-def partial_update_football_club(club_id: int, club_data: schemas.FootballClubUpdate, db: Session = Depends(get_db)):
+def partial_update_football_club(club_id: int, club_data: schemas.FootballClubUpdate, db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     db_club = crud.get_football_club_by_id(db, club_id)
 
     if db_club is None:
@@ -114,7 +139,7 @@ def partial_update_football_club(club_id: int, club_data: schemas.FootballClubUp
 
 
 @app.put("/football-clubs/{club_id}", response_model=schemas.FootballClub)
-def update_football_club(club_id: int, club_data: schemas.FootballClubUpdate, db: Session = Depends(get_db)):
+def update_football_club(club_id: int, club_data: schemas.FootballClubUpdate, db: Session = Depends(get_db), username: str = Depends(get_current_username)):
     db_club = crud.get_football_club_by_id(db, club_id)
 
     if db_club is None:

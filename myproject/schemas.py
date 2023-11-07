@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from datetime import date
 
 
 class PlayerBase(BaseModel):
@@ -22,9 +21,16 @@ class Player(PlayerBase):
 
 class FootballClubBase(BaseModel):
     name: str
-    founded: date
+    founded: int
     stadium: str
     manager: str
+
+
+class FootballClubUpdate(BaseModel):
+    name: str | None = None
+    founded: int | None = None
+    stadium: str | None = None
+    manager: str | None = None
 
 
 class FootballClubCreate(FootballClubBase):
